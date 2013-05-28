@@ -4,24 +4,28 @@
 #include <cassert>
 
 const std::string EXPECTED_ALL =
-"math:\n"
-"- passes primitive test\n";
+"FloatMath\n"
+"- passes primitive test\n"
+"- passes multiplication\n"
+"IntegerMath\n"
+"- passes primitive test\n"
+"- passes multiplication\n";
 
 template <typename T1, typename T2>
-bool check(T1 expected, T2 actual) {
+size_t check(T1 expected, T2 actual) {
     bool result = (expected == actual);
     if (result == false) {
         std::cout << ">> runAll FAILURE" << std::endl;
-        std::cout << "expected output ----------" << std::endl;
+        std::cout << ">> expected output ----------" << std::endl;
         std::cout << expected << std::endl;
-        std::cout << "actual output ------------" << std::endl;
+        std::cout << ">> actual output ------------" << std::endl;
         std::cout << actual << std::endl;
-        std::cout << "--------------------------" << std::endl << std::endl;
-        return false;
+        std::cout << ">> --------------------------" << std::endl << std::endl;
+        return 1;
     }
     else {
         std::cout << ">> runAll SUCCESS" << std::endl << std::endl;
-        return true;
+        return 0;
     }
 }
 
@@ -38,5 +42,8 @@ int main(int, char**) {
     
     std::string str = output.str();
     
-    return (int)check(str, EXPECTED_ALL);
+    size_t failureCount = 0;
+    failureCount += check(EXPECTED_ALL, str);
+    
+    return failureCount;
 }

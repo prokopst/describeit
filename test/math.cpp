@@ -16,7 +16,7 @@ describe(FloatMath) {
         int b = 1;
         int c = a + b;
         
-        expect(c == 2);
+        expect(c) == 2;
     }
     
     it("passes multiplication") {
@@ -24,6 +24,6 @@ describe(FloatMath) {
         int b = 2;
         int c = a * b;
         
-        expect(c == 4);
+        expect(c) == 4;
     }
 };

@@ -20,15 +20,13 @@
 #endif
 
 struct ExpectationFailure : public std::exception {
-    int line;
     const char* file;
+    int line;
 
-    ExpectationFailure(int line, const char* file)
-        : line (line), file (file) {
+    ExpectationFailure(const char* file, int line)
+    : file(file), line(line) {
     }
 };
-
-#define expect(what) if (!(what)) { throw ExpectationFailure(__LINE__, __FILE__); }
 
 namespace Status {
     enum StatusEnum {OK, FAILURE, ERROR};
@@ -74,6 +72,34 @@ public:
 };
 
 namespace detail {
+    template <typename Type>
+    struct Expectation {
+        const char* file;
+        const int line;
+        Type actual;
+        
+        Expectation(const char* file, int line, Type actual) : file(file), line(line), actual(actual) {
+        }
+        
+        template <typename Other>
+        bool operator==(const Other& other) {
+            bool result = (actual == other);
+            if (result == true) {
+                return true;
+            }
+            else {
+                throw ExpectationFailure(file, line);
+            }
+            return false;
+        }
+    };
+    
+    template <typename Type>
+    inline Expectation<Type> expectation(const char* file, int line, Type actual) {
+        return Expectation<Type>(file, line, actual);
+    }
+    
+    
     class DescribeRegistratorBase {
     public:
         virtual void runTests(AbstractPrinter& printer) = 0;
@@ -196,6 +222,8 @@ namespace detail {
 }
 
 typedef detail::DescribeIt DescribeIt;
+
+#define expect(what) detail::expectation(__FILE__, __LINE__, what)
 
 #define beforeAll virtual void beforeAllMethod() override
 #define afterAll virtual void afterAllMethod() override
