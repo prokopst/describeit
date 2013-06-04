@@ -17,7 +17,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    set (CMAKE_CXX_FLAGS "-pedantic -Wall -Wextra -Werror -O0 -fno-inline -ggdb")
+    set (CMAKE_CXX_FLAGS "-pedantic -Wall -Wextra -Werror -O0 -fno-inline -ggdb -g")
 endif()
 
 # list all cpp files in directory test

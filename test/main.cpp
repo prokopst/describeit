@@ -4,12 +4,14 @@
 #include <cassert>
 
 const std::string EXPECTED_ALL =
-"FloatMath\n"
-"- passes primitive test\n"
+"Integer\n"
+"- should handle addition\n"
+"- should handle subtraction\n"
 "- passes multiplication\n"
-"IntegerMath\n"
-"- passes primitive test\n"
-"- passes multiplication\n";
+"Test\n"
+"- should raise custom exception (ERROR)\n"
+"- should raise standard exception (ERROR)\n"
+"- should fail in expect (FAILED)\n";
 
 template <typename T1, typename T2>
 size_t check(T1 expected, T2 actual) {

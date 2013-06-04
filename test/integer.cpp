@@ -1,19 +1,62 @@
 #include "describeit.h"
+#include <climits>
 
-describe(IntegerMath) {
-    it("passes primitive test") {
-        int a = 1;
-        int b = 1;
-        int c = a + b;
+struct Integer {
+public:
+    static const int POSITIVE_INFINITY = INT_MAX;
+    static const int NEGATIVE_INFINITY = INT_MIN;
+    int value;
+    
+    Integer(int value): value(value) {
+    }
+    
+    Integer& operator*(const Integer& other) {
+        value *= other.value;
+        return *this;
+    }
+    
+    Integer& operator+(const Integer& other) {
+        value += other.value;
+        return *this;
+    }
+    
+    Integer& operator-(const Integer& other) {
+        value -= other.value;
+        return *this;
+    }
+};
+
+namespace detail {
+    template <>
+    struct Expectation<Integer> : public ExpectationBase<int> {
+        Expectation(const Integer& integer) : ExpectationBase<int>(integer.value) {
+            
+        }
+    };
+}
+
+describe(Integer) {    
+    it("should handle addition") {
+        Integer a = 1000;
+        Integer b = 337;
+        Integer c = a + b;
         
-        expect(c) == 2;
+        expect(c) == 1337;
+    }
+    
+    it("should handle subtraction") {
+        Integer a = 1337;
+        Integer b = 337;
+        Integer c = a - b;
+        
+        expect(c) == 1000;
     }
     
     it("passes multiplication") {
-        int a = 2;
-        int b = 2;
-        int c = a * b;
+        Integer a = 3;
+        Integer b = 2;
+        Integer c = a * b;
         
-        expect(c) == 4;
+        expect(c) == 6;
     }
 };

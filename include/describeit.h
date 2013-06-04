@@ -1,6 +1,6 @@
 /**
  * \file describeit.h
- * \author Stanislav Prokop (prost87)
+ * \author Stanislav Prokop (prosty)
  * \copyright MIT license.
  */
 
@@ -19,12 +19,34 @@
 #define nullptr 0
 #endif
 
-struct ExpectationFailure : public std::exception {
-    const char* file;
-    int line;
+namespace describeit {
+/// \cond DETAIL
+template <int DUMMY>
+class ExpectationFailureBase {
+public:
+    static const char* file;
+    static int line;
+    
+    std::string expected;
+    std::string actual;
+};
 
-    ExpectationFailure(const char* file, int line)
-    : file(file), line(line) {
+template <int DUMMY>
+const char* ExpectationFailureBase<DUMMY>::file = nullptr;
+
+template <int DUMMY>
+int ExpectationFailureBase<DUMMY>::line = -1;
+/// \endcond
+
+template <typename Type>
+struct ExpectationFailure : ExpectationFailureBase<0> {
+    std::string what_string;
+    
+    ExpectationFailure(const std::string& what_string = "") : what_string(what_string) {
+    }
+    
+    const char* what() {
+        return what.c_str();
     }
 };
 
@@ -37,25 +59,50 @@ protected:
     std::ostream& output;
 public:
     AbstractPrinter(std::ostream& output) : output(output) {}
-    virtual void start(size_t ) = 0;
+    /**
+     * Called at the very beginning. Number of descriptions.
+     * \param descriptionsCount number of descriptions
+     */
+    virtual void start(size_t descriptionsCount) = 0;
+    /**
+     * Called before every \a Describe.
+     * \param name \a Describe name.
+     * \param testCount number of tests.
+     */
     virtual void startDescribe(const std::string& name, size_t testCount) = 0;
     /**
+     * Called after every test.
      * \param name name of the test.
      * \param status status of the test: 0 for OK, 1 for FAILURE, 2 for ERROR.
      */
     virtual void test(const std::string& name, Status::StatusEnum status) = 0;
+    /**
+     * Called after all tests in description are performed.
+     * \param passedCount number of passed tests.
+     * \param failedCount number of errorneous tests.
+     */
     virtual void endDescribe(size_t passedCount, size_t failedCount) = 0;
+    /**
+     * Called at the end.
+     */
     virtual void end() = 0;
 };
 
+/**
+ * \brief Printer for simple yaml based printer similar to one found in RSpec.
+ */
 class BehavePrinter : public AbstractPrinter {
 public:
     BehavePrinter(std::ostream& output) : AbstractPrinter(output) {}
+    
     virtual void start(size_t) override {}
+    
     virtual void startDescribe(const std::string& name, size_t) override {
         output << name << std::endl;
     }
+    
     virtual void endDescribe(size_t, size_t) override {}
+    
     virtual void test(const std::string& name, Status::StatusEnum status) override {
         output << "- " << name;
         if (status == Status::OK) {
@@ -68,35 +115,84 @@ public:
         }
         output << std::endl;
     }
+    
     virtual void end() override {}
 };
 
 namespace detail {
     template <typename Type>
-    struct Expectation {
-        const char* file;
-        const int line;
+    struct ExpectationBase {
         Type actual;
         
-        Expectation(const char* file, int line, Type actual) : file(file), line(line), actual(actual) {
+        ExpectationBase(Type actual) : actual(actual) {
         }
         
         template <typename Other>
         bool operator==(const Other& other) {
             bool result = (actual == other);
-            if (result == true) {
-                return true;
+            if (result == false) {
+                throw ExpectationFailure<Type>();
             }
-            else {
-                throw ExpectationFailure(file, line);
+            return result;
+        }
+        
+        template <typename Other>
+        bool operator!=(const Other& other) {
+            bool result = (actual == other);
+            if (result != false) {
+                throw ExpectationFailure<Type>();
             }
-            return false;
+            return result;
+        }
+        
+        template <typename Other>
+        bool operator>=(const Other& other) {
+            bool result = (actual == other);
+            if (result >= false) {
+                throw ExpectationFailure<Type>();
+            }
+            return result;
+        }
+        
+        template <typename Other>
+        bool operator<=(const Other& other) {
+            bool result = (actual == other);
+            if (result <= false) {
+                throw ExpectationFailure<Type>();
+            }
+            return result;
+        }
+        
+        template <typename Other>
+        bool operator>(const Other& other) {
+            bool result = (actual == other);
+            if (result > false) {
+                throw ExpectationFailure<Type>();
+            }
+            return result;
+        }
+        
+        template <typename Other>
+        bool operator<(const Other& other) {
+            bool result = (actual == other);
+            if (result < false) {
+                throw ExpectationFailure<Type>();
+            }
+            return result;
+        }
+    };
+    
+    template <typename Type>
+    struct Expectation : public ExpectationBase<Type> {
+        Expectation(Type actual) : ExpectationBase<Type>(actual) {
         }
     };
     
     template <typename Type>
     inline Expectation<Type> expectation(const char* file, int line, Type actual) {
-        return Expectation<Type>(file, line, actual);
+        ExpectationFailure<Type>::file = file;
+        ExpectationFailure<Type>::line = line;
+        return Expectation<Type>(actual);
     }
     
     
@@ -106,48 +202,21 @@ namespace detail {
         virtual ~DescribeRegistratorBase() {}
     };
     
-    /**
-     * \brief DescribeIt class.
-     */
-    template <int DUMMY>
-    class DescribeItManager {
-    protected:
-        typedef std::map<std::string, DescribeRegistratorBase*> Registrators;
-        Registrators registrators;
-        DescribeItManager() {}
+    template <typename Type>
+    class Singleton {
     public:
-        static DescribeItManager<DUMMY>* getInstance() noexcept {
+        /**
+         * Static member function to create or get singleton.
+         * \return singleton instance.
+         */
+        static Type* getInstance() noexcept {
             if (instance == nullptr) {
-                instance = new DescribeItManager<DUMMY>();
+                instance = new Type();
             }
             return instance;
         }
-            
-        void registerDescribe(const std::string& name, DescribeRegistratorBase* registrator) {
-            registrators[name] = registrator;
-        }
-        void runAll(AbstractPrinter& printer) {
-            printer.start(registrators.size());
-            
-            for (Registrators::iterator iter = registrators.begin(); iter != registrators.end(); ++iter) {
-                DescribeRegistratorBase* registrator = iter->second;
-                registrator->runTests(printer);
-            }
-            printer.end();
-        }
-        
-        size_t descriptionsCount() const {
-            return registrators.size();
-        }
-        
-        ~DescribeItManager() {
-            for (Registrators::iterator iter = registrators.begin(); iter != registrators.end(); ++iter) {
-                DescribeRegistratorBase* registrator = iter->second;
-                delete registrator;
-            }
-        }
-    private:
-        static DescribeItManager* instance;
+    protected:
+        static Type* instance;
         struct AutoPtr {
             AutoPtr() {
             }
@@ -159,9 +228,65 @@ namespace detail {
         };
         static AutoPtr deleter;
     };
-    template <int DUMMY>
-    DescribeItManager<DUMMY>* DescribeItManager<DUMMY>::instance = nullptr;
-    typedef DescribeItManager<0> DescribeIt;
+    template <typename Type>
+    Type* Singleton<Type>::instance = nullptr;
+    
+    /**
+     * \brief Singleton that provides running tests and information about them.
+     * 
+     * This class is also used for registration of \a DescribeRegistator instances.
+     */
+    class DescribeIt : public Singleton<DescribeIt> {
+    protected:
+        typedef std::map<std::string, DescribeRegistratorBase*> Registrators;
+        Registrators registrators;
+    public:
+        DescribeIt() {}
+        
+        /**
+         * \brief Register registrator.
+         * 
+         * \param name name of the registrator.
+         * \param registrator registrator instance
+         */
+        void registerDescribe(const std::string& name, DescribeRegistratorBase* registrator) {
+            registrators[name] = registrator;
+        }
+        
+        /**
+         * \brief Run all tests.
+         * 
+         * \param printer instance of class derived from \a AbstractPrinter.
+         */
+        void runAll(AbstractPrinter& printer) {
+            printer.start(registrators.size());
+            
+            for (Registrators::iterator iter = registrators.begin(); iter != registrators.end(); ++iter) {
+                DescribeRegistratorBase* registrator = iter->second;
+                registrator->runTests(printer);
+            }
+            printer.end();
+        }
+        
+        /**
+         * \brief Return number of all descriptions.
+         * 
+         * \return number of descriptions.
+         */
+        size_t descriptionsCount() const {
+            return registrators.size();
+        }
+        
+        /**
+         * \brief Destructor handles destruction of all registrators.
+         */
+        ~DescribeIt() {
+            for (Registrators::iterator iter = registrators.begin(); iter != registrators.end(); ++iter) {
+                DescribeRegistratorBase* registrator = iter->second;
+                delete registrator;
+            }
+        }
+    };
     
     template <typename SpecificDescribeClass>
     class DescribeRegistrator : public DescribeRegistratorBase {
@@ -178,10 +303,12 @@ namespace detail {
             DescribeIt* instance = DescribeIt::getInstance();
             instance->registerDescribe(name, this);
         }
+        
         void registerMethod(const std::string& name, size_t id, Method method) {
             methodsOrder[id] = name;
             methods[name] = method;
         }
+        
         virtual void runTests(AbstractPrinter& printer) {
             SpecificDescribeClass describeClass;
             printer.startDescribe(name, methods.size());
@@ -189,12 +316,17 @@ namespace detail {
                 const std::string& testName = iter->second;
                 Method method = methods[testName];
                 Status::StatusEnum status = Status::OK;
+                std::string what;
                 
                 try {
                     (describeClass.*method)();
                 }
-                catch (ExpectationFailure excpectationFailure) {
+                catch (ExpectationFailureBase<0> excpectationFailure) {
                     status = Status::FAILURE;
+                }
+                catch (std::exception exception) {
+                    status = Status::ERROR;
+                    what = exception.what();
                 }
                 catch (...) {
                     status = Status::ERROR;
@@ -223,7 +355,17 @@ namespace detail {
 
 typedef detail::DescribeIt DescribeIt;
 
-#define expect(what) detail::expectation(__FILE__, __LINE__, what)
+struct DummyEater {
+    template <typename Type>
+    Type& operator,(Type& value) {
+        return value;
+    }
+};
+
+}
+
+#define expect(what) DummyEater(),  detail::expectation(__FILE__, __LINE__, what)
+//#define expect(what) detail::ExpectationHandler(__FILE__, __LINE__),  detail::expectation(what)
 
 #define beforeAll virtual void beforeAllMethod() override
 #define afterAll virtual void afterAllMethod() override
