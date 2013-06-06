@@ -21,12 +21,13 @@ public:
     }
     
     Integer& operator-(const Integer& other) {
-        value -= other.value;
+        // mistake on purpose
+        value += other.value;
         return *this;
     }
 };
 
-namespace detail {
+namespace describeit {
     template <>
     struct Expectation<Integer> : public ExpectationBase<int> {
         Expectation(const Integer& integer) : ExpectationBase<int>(integer.value) {

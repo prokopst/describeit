@@ -12,6 +12,7 @@
 #include <map>
 #include <string>
 #include <stdexcept>
+#include <sstream>
 
 #if __cplusplus < 201103L
 #define override
@@ -26,9 +27,6 @@ class ExpectationFailureBase {
 public:
     static const char* file;
     static int line;
-    
-    std::string expected;
-    std::string actual;
 };
 
 template <int DUMMY>
@@ -38,15 +36,29 @@ template <int DUMMY>
 int ExpectationFailureBase<DUMMY>::line = -1;
 /// \endcond
 
-template <typename Type>
 struct ExpectationFailure : ExpectationFailureBase<0> {
-    std::string what_string;
+    std::string actual;
+    std::string expected;
     
-    ExpectationFailure(const std::string& what_string = "") : what_string(what_string) {
+    ExpectationFailure(const std::string& actual="", const std::string& expected="") : actual(actual), expected(expected) {
     }
     
-    const char* what() {
-        return what.c_str();
+    virtual const std::string what() {
+        if (actual == "" and expected == "") {
+            return "";
+        }
+    }
+};
+
+struct ExceptionNotThrownFailure : ExpectationFailureBase<0> {
+    std::string name;
+    
+    ExceptionNotThrownFailure(const char* name) : name(name) {
+    }
+    
+    virtual const std::string what() {
+        std::string result = "Exception " + name + " was not catched.";
+        return result;
     }
 };
 
@@ -119,9 +131,15 @@ public:
     virtual void end() override {}
 };
 
-namespace detail {
     template <typename Type>
     struct ExpectationBase {
+    protected:
+        static std::string toString(Type toConvert) {
+            std::ostringstream stream;
+            stream << toConvert;
+            return stream.str();
+        }
+    public:
         Type actual;
         
         ExpectationBase(Type actual) : actual(actual) {
@@ -131,7 +149,7 @@ namespace detail {
         bool operator==(const Other& other) {
             bool result = (actual == other);
             if (result == false) {
-                throw ExpectationFailure<Type>();
+                throw ExpectationFailure(toString(actual), toString(other));
             }
             return result;
         }
@@ -140,7 +158,7 @@ namespace detail {
         bool operator!=(const Other& other) {
             bool result = (actual == other);
             if (result != false) {
-                throw ExpectationFailure<Type>();
+                throw ExpectationFailure(toString(actual), toString(other));
             }
             return result;
         }
@@ -149,7 +167,7 @@ namespace detail {
         bool operator>=(const Other& other) {
             bool result = (actual == other);
             if (result >= false) {
-                throw ExpectationFailure<Type>();
+                throw ExpectationFailure(toString(actual), toString(other));
             }
             return result;
         }
@@ -158,7 +176,7 @@ namespace detail {
         bool operator<=(const Other& other) {
             bool result = (actual == other);
             if (result <= false) {
-                throw ExpectationFailure<Type>();
+                throw ExpectationFailure(toString(actual), toString(other));
             }
             return result;
         }
@@ -167,7 +185,7 @@ namespace detail {
         bool operator>(const Other& other) {
             bool result = (actual == other);
             if (result > false) {
-                throw ExpectationFailure<Type>();
+                throw ExpectationFailure(toString(actual), toString(other));
             }
             return result;
         }
@@ -176,7 +194,7 @@ namespace detail {
         bool operator<(const Other& other) {
             bool result = (actual == other);
             if (result < false) {
-                throw ExpectationFailure<Type>();
+                throw ExpectationFailure(toString(actual), toString(other));
             }
             return result;
         }
@@ -190,10 +208,12 @@ namespace detail {
     
     template <typename Type>
     inline Expectation<Type> expectation(const char* file, int line, Type actual) {
-        ExpectationFailure<Type>::file = file;
-        ExpectationFailure<Type>::line = line;
+        ExpectationFailure::file = file;
+        ExpectationFailure::line = line;
         return Expectation<Type>(actual);
     }
+    
+    namespace detail {
     
     
     class DescribeRegistratorBase {
@@ -321,7 +341,10 @@ namespace detail {
                 try {
                     (describeClass.*method)();
                 }
-                catch (ExpectationFailureBase<0> excpectationFailure) {
+                catch (ExceptionNotThrownFailure exception) {
+                    status = Status::FAILURE;
+                }
+                catch (ExpectationFailure exception) {
                     status = Status::FAILURE;
                 }
                 catch (std::exception exception) {
@@ -350,21 +373,27 @@ namespace detail {
     
     template <typename SpecificDescribeClass, char const* NAME>
     DescribeRegistrator<SpecificDescribeClass>* DescribeClass<SpecificDescribeClass, NAME>::registrator = new DescribeRegistrator<SpecificDescribeClass>(NAME);
-    
+
+    struct DummyEater {
+        template <typename Type>
+        Type& operator,(Type& value) {
+            return value;
+        }
+    };    
 }
 
 typedef detail::DescribeIt DescribeIt;
 
-struct DummyEater {
-    template <typename Type>
-    Type& operator,(Type& value) {
-        return value;
-    }
-};
-
 }
 
-#define expect(what) DummyEater(),  detail::expectation(__FILE__, __LINE__, what)
+#define expect_exception(what, exception) \
+try { \
+    what; \
+    throw describeit::ExceptionNotThrownFailure(#exception); \
+} \
+catch (exception ex) {}
+
+#define expect(what) describeit::detail::DummyEater(),  describeit::expectation(__FILE__, __LINE__, what)
 //#define expect(what) detail::ExpectationHandler(__FILE__, __LINE__),  detail::expectation(what)
 
 #define beforeAll virtual void beforeAllMethod() override
@@ -374,7 +403,7 @@ struct DummyEater {
 
 #define __describe_implementation(what, counter) \
 char __DESCRIPTION_NAME_##what[] = #what;\
-class __Describe##what : public detail::DescribeClass<__Describe##what, __DESCRIPTION_NAME_##what>
+class __Describe##what : public describeit::detail::DescribeClass<__Describe##what, __DESCRIPTION_NAME_##what>
 
 #define __describe(what, counter) __describe_implementation(what, counter)
 

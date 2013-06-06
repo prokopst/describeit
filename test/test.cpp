@@ -29,4 +29,16 @@ describe(Test) {
     it("should fail in expect") {
         expect(2) == 3;
     }
+    
+    it("should catch custom exception in expect_exception") {
+        Test test;
+        
+        expect_exception(test.raiseCustomException(), CustomException);
+    }
+    
+    it("should not catch custom exception in expect_exception with std::exception") {
+        Test test;
+        
+        expect_exception(test.raiseCustomException(), std::exception);
+    }
 };

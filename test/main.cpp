@@ -6,12 +6,14 @@
 const std::string EXPECTED_ALL =
 "Integer\n"
 "- should handle addition\n"
-"- should handle subtraction\n"
+"- should handle subtraction (FAILED)\n"
 "- passes multiplication\n"
 "Test\n"
 "- should raise custom exception (ERROR)\n"
 "- should raise standard exception (ERROR)\n"
-"- should fail in expect (FAILED)\n";
+"- should fail in expect (FAILED)\n"
+"- should catch custom exception in expect_exception\n"
+"- should not catch custom exception in expect_exception with std::exception (ERROR)\n";
 
 template <typename T1, typename T2>
 size_t check(T1 expected, T2 actual) {
@@ -32,10 +34,10 @@ size_t check(T1 expected, T2 actual) {
 }
 
 int main(int, char**) {
-    DescribeIt* describeIt = DescribeIt::getInstance();
+    describeit::DescribeIt* describeIt = describeit::DescribeIt::getInstance();
     
     std::ostringstream output;
-    BehavePrinter behavePrinter(output);
+    describeit::BehavePrinter behavePrinter(output);
     
     size_t descriptionsCount = describeIt->descriptionsCount();
     assert(descriptionsCount == 2);
