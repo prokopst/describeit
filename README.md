@@ -38,16 +38,21 @@ describe(Stack) {
 And few facts:
 * you **don't need to compile it**, really
 ** it's header only libary
-* describeit is using standard C++98 (in other words not the latest revision C++11) without additional dependencies
-** its own tests are compiled with "-pedantic -Wextra -Wall -Werr" in clang++ and g++
+* describeit is using **only standard C++98** (in other words compatible with most of the standard compilers) **without additional dependencies**
+** its own **tests are compiled with "-pedantic -Wextra -Wall -Werr"** in clang++ and g++
+
+TODO
+----
+
+More 
 
 
 Motivation
 ----------
 
-In my opinion xUnit style is being slowly deprecated. It makes more sense - developer don't just
-want to write tests, I want to describe behavior first, then write test covering it. And then
-finally implement it.
+In my opinion xUnit style is being slowly deprecated. It makes more sense -as a developer I don't just
+want to write tests, I want to describe behavior. After behaviour is written, then I want to implement tests.
+And
 
 But it was quite disturbing to me that there is no RSpec-like library for C++. Yes, There is
 igloo-testing, but using underscores in Spec and Context, that's far away from usable
